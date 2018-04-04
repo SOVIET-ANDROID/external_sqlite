@@ -1,6 +1,6 @@
 diff -r -u -d orig/shell.c ./shell.c
---- orig/shell.c	2018-01-22 18:57:31.000000000 +0000
-+++ ./shell.c	2018-01-24 03:56:43.179045982 +0000
+--- orig/shell.c	2018-04-02 04:20:50.000000000 -0700
++++ ./shell.c	2018-04-05 16:18:08.000519275 -0700
 @@ -87,6 +87,12 @@
  #endif
  #include <ctype.h>
@@ -14,7 +14,7 @@ diff -r -u -d orig/shell.c ./shell.c
  
  #if !defined(_WIN32) && !defined(WIN32)
  # include <signal.h>
-@@ -10395,6 +10401,21 @@
+@@ -11067,6 +11073,21 @@
        sqlite3_exec(p->db, zSql, 0, 0, 0);
        sqlite3_free(zSql);
      }
@@ -37,9 +37,36 @@ diff -r -u -d orig/shell.c ./shell.c
  }
  
 diff -r -u -d orig/sqlite3.c ./sqlite3.c
---- orig/sqlite3.c	2018-01-22 18:57:31.000000000 +0000
-+++ ./sqlite3.c	2018-01-24 04:00:42.073026149 +0000
-@@ -51575,15 +51575,9 @@
+--- orig/sqlite3.c	2018-04-02 04:20:50.000000000 -0700
++++ ./sqlite3.c	2018-04-06 15:25:39.966266834 -0700
+@@ -34945,7 +34945,7 @@
+   SimulateIOError( rc=1 );
+   if( rc!=0 ){
+     storeLastErrno((unixFile*)id, errno);
+-    return SQLITE_IOERR_FSTAT;
++    return unixLogError(SQLITE_IOERR_FSTAT, "fstat", ((unixFile*)id)->zPath);
+   }
+   *pSize = buf.st_size;
+ 
+@@ -34981,7 +34981,7 @@
+     struct stat buf;              /* Used to hold return values of fstat() */
+    
+     if( osFstat(pFile->h, &buf) ){
+-      return SQLITE_IOERR_FSTAT;
++      return unixLogError(SQLITE_IOERR_FSTAT, "fstat", pFile->zPath);
+     }
+ 
+     nSize = ((nByte+pFile->szChunk-1) / pFile->szChunk) * pFile->szChunk;
+@@ -35660,7 +35660,7 @@
+     ** with the same permissions.
+     */
+     if( osFstat(pDbFd->h, &sStat) ){
+-      rc = SQLITE_IOERR_FSTAT;
++      rc = unixLogError(SQLITE_IOERR_FSTAT, "fstat", pDbFd->zPath);
+       goto shm_open_err;
+     }
+ 
+@@ -52698,15 +52698,9 @@
    unsigned pgFlags      /* Various flags */
  ){
    unsigned level = pgFlags & PAGER_SYNCHRONOUS_MASK;
@@ -58,7 +85,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    if( pPager->noSync ){
      pPager->syncFlags = 0;
    }else if( pgFlags & PAGER_FULLFSYNC ){
-@@ -52897,18 +52891,12 @@
+@@ -54056,18 +54050,12 @@
    pPager->memDb = (u8)memDb;
    pPager->readOnly = (u8)readOnly;
    assert( useJournal || pPager->tempFile );
@@ -83,16 +110,25 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    /* pPager->pFirst = 0; */
    /* pPager->pFirstSynced = 0; */
    /* pPager->pLast = 0; */
-@@ -100928,7 +100916,7 @@
+@@ -102408,7 +102396,7 @@
  #endif
      sqlite3BtreeLeave(pNew->pBt);
    }
 -  pNew->safety_level = SQLITE_DEFAULT_SYNCHRONOUS+1;
 +  pNew->safety_level = 1;
-   pNew->zDbSName = sqlite3DbStrDup(db, zName);
+   if( !REOPEN_AS_MEMDB(db) ) pNew->zDbSName = sqlite3DbStrDup(db, zName);
    if( rc==SQLITE_OK && pNew->zDbSName==0 ){
      rc = SQLITE_NOMEM_BKPT;
-@@ -146360,7 +146348,7 @@
+@@ -119585,7 +119573,7 @@
+   }
+   if( pDb->pSchema->file_format>SQLITE_MAX_FILE_FORMAT ){
+     sqlite3SetString(pzErrMsg, db, "unsupported file format");
+-    rc = SQLITE_ERROR;
++    rc = SQLITE_CORRUPT_BKPT; // Android Change from "rc = SQLITE_ERROR;";
+     goto initone_error_out;
+   }
+ 
+@@ -148022,7 +148010,7 @@
    ** database it is OFF. This matches the pager layer defaults.  
    */
    db->aDb[0].zDbSName = "main";
@@ -101,3 +137,29 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    db->aDb[1].zDbSName = "temp";
    db->aDb[1].safety_level = PAGER_SYNCHRONOUS_OFF;
  
+@@ -154429,13 +154417,25 @@
+   ** module with sqlite.
+   */
+   if( SQLITE_OK==rc 
++#ifndef ANDROID    /* fts3_tokenizer disabled for security reasons */
+    && SQLITE_OK==(rc = sqlite3Fts3InitHashTable(db, pHash, "fts3_tokenizer"))
++#endif
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "snippet", -1))
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "offsets", 1))
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "matchinfo", 1))
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "matchinfo", 2))
+    && SQLITE_OK==(rc = sqlite3_overload_function(db, "optimize", 1))
+   ){
++#ifdef SQLITE_ENABLE_FTS3_BACKWARDS
++    rc = sqlite3_create_module_v2(
++        db, "fts1", &fts3Module, (void *)pHash, 0
++        );
++    if(rc) return rc;
++    rc = sqlite3_create_module_v2(
++        db, "fts2", &fts3Module, (void *)pHash, 0
++        );
++    if(rc) return rc;
++#endif
+     rc = sqlite3_create_module_v2(
+         db, "fts3", &fts3Module, (void *)pHash, hashDestroy
+     );
