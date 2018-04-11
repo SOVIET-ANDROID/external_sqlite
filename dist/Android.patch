@@ -1,6 +1,6 @@
 diff -r -u -d orig/shell.c ./shell.c
---- orig/shell.c	2018-04-02 04:20:50.000000000 -0700
-+++ ./shell.c	2018-04-05 16:18:08.000519275 -0700
+--- orig/shell.c	2018-04-10 10:57:47.000000000 -0700
++++ ./shell.c	2018-04-11 15:16:35.114138966 -0700
 @@ -87,6 +87,12 @@
  #endif
  #include <ctype.h>
@@ -37,9 +37,9 @@ diff -r -u -d orig/shell.c ./shell.c
  }
  
 diff -r -u -d orig/sqlite3.c ./sqlite3.c
---- orig/sqlite3.c	2018-04-02 04:20:50.000000000 -0700
-+++ ./sqlite3.c	2018-04-06 15:25:39.966266834 -0700
-@@ -34945,7 +34945,7 @@
+--- orig/sqlite3.c	2018-04-10 10:57:47.000000000 -0700
++++ ./sqlite3.c	2018-04-11 15:16:35.143139452 -0700
+@@ -34973,7 +34973,7 @@
    SimulateIOError( rc=1 );
    if( rc!=0 ){
      storeLastErrno((unixFile*)id, errno);
@@ -48,7 +48,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    }
    *pSize = buf.st_size;
  
-@@ -34981,7 +34981,7 @@
+@@ -35009,7 +35009,7 @@
      struct stat buf;              /* Used to hold return values of fstat() */
     
      if( osFstat(pFile->h, &buf) ){
@@ -57,7 +57,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
      }
  
      nSize = ((nByte+pFile->szChunk-1) / pFile->szChunk) * pFile->szChunk;
-@@ -35660,7 +35660,7 @@
+@@ -35688,7 +35688,7 @@
      ** with the same permissions.
      */
      if( osFstat(pDbFd->h, &sStat) ){
@@ -66,7 +66,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
        goto shm_open_err;
      }
  
-@@ -52698,15 +52698,9 @@
+@@ -52726,15 +52726,9 @@
    unsigned pgFlags      /* Various flags */
  ){
    unsigned level = pgFlags & PAGER_SYNCHRONOUS_MASK;
@@ -85,7 +85,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    if( pPager->noSync ){
      pPager->syncFlags = 0;
    }else if( pgFlags & PAGER_FULLFSYNC ){
-@@ -54056,18 +54050,12 @@
+@@ -54084,18 +54078,12 @@
    pPager->memDb = (u8)memDb;
    pPager->readOnly = (u8)readOnly;
    assert( useJournal || pPager->tempFile );
@@ -110,7 +110,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    /* pPager->pFirst = 0; */
    /* pPager->pFirstSynced = 0; */
    /* pPager->pLast = 0; */
-@@ -102408,7 +102396,7 @@
+@@ -102461,7 +102449,7 @@
  #endif
      sqlite3BtreeLeave(pNew->pBt);
    }
@@ -119,7 +119,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    if( !REOPEN_AS_MEMDB(db) ) pNew->zDbSName = sqlite3DbStrDup(db, zName);
    if( rc==SQLITE_OK && pNew->zDbSName==0 ){
      rc = SQLITE_NOMEM_BKPT;
-@@ -119585,7 +119573,7 @@
+@@ -119638,7 +119626,7 @@
    }
    if( pDb->pSchema->file_format>SQLITE_MAX_FILE_FORMAT ){
      sqlite3SetString(pzErrMsg, db, "unsupported file format");
@@ -128,7 +128,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
      goto initone_error_out;
    }
  
-@@ -148022,7 +148010,7 @@
+@@ -148112,7 +148100,7 @@
    ** database it is OFF. This matches the pager layer defaults.  
    */
    db->aDb[0].zDbSName = "main";
@@ -137,7 +137,7 @@ diff -r -u -d orig/sqlite3.c ./sqlite3.c
    db->aDb[1].zDbSName = "temp";
    db->aDb[1].safety_level = PAGER_SYNCHRONOUS_OFF;
  
-@@ -154429,13 +154417,25 @@
+@@ -154519,13 +154507,25 @@
    ** module with sqlite.
    */
    if( SQLITE_OK==rc 
